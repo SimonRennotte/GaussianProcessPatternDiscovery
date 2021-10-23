@@ -319,7 +319,7 @@ class Gp:
         log_marg_lk = 0.5 * (fit_term + complexity_term + k_cholesky.shape[0] * math.log(2 * math.pi))
         return log_marg_lk, fit_term, complexity_term
 
-    def train_hyperparams(self, x_val=None, y_val=None, n_restarts=10, prop_in=1, n_iters=10, lr=1e-3, step_val=5):
+    def train(self, x_val=None, y_val=None, n_restarts=5, prop_in=0.5, n_iters=250, lr=1e-3, step_val=5):
         """
         Train the kernel hyperparameters so as to minimize the log likelihood of the data using gradient descent with
         LBFGS.
@@ -335,9 +335,9 @@ class Gp:
         self.inv_k is then computed
 
         Args:
-            x_val (torch.Tensor or None): features of the validation data.
+            x_val (numpy.array or torch.Tensor): features of the validation data.
                                             If it is None, the training loss will be used for validation
-            y_val (torch.Tensor or None): targets of the validation data.
+            y_val (numpy.array or torch.Tensor): targets of the validation data.
                                             If it is None, the training loss will be used for validation
             n_restarts (int): Number of restart with different initialization values
             prop_in (float): proportion of data for each iteration that is used inside the gp memory.
@@ -357,7 +357,7 @@ class Gp:
 
         dist_mat = compute_dist_mat(self.x, self.x)
 
-        if x_val is not None and y_val is not None:
+        if len(x_val) != 0 and len(y_val) != 0:
             x_val = torch.Tensor(x_val)
             y_val = self.normalize_y(y_val)
             use_val = True

@@ -20,7 +20,18 @@ class GpPatternDiscovery(Gp):
 		"mixtures_scale": std of the mixtures (inverse of lengthscales)
 		"mixtures_mean": central frequency of the mixtures
 	"""
-	def __init__(self, x, y, sn_range_limits=(1e-3, 1), sn_range_init=(1e-3, 1), n_gm=10, max_f_init=0.5):
+	def __init__(self, x, y, sn_range_limits=(1e-3, math.inf), sn_range_init=(1e-3, 1), n_gm=10, max_f_init=None):
+		"""
+		Init the object
+		Args:
+			x (numpy.array or torch.Tensor): feature of the data that will be stored in the gp memory
+			y (numpy.array or torch.Tensor): target values of the data that will be stored in the gp memory
+			sn_range_init (tuple): min and max value of the signal noise used for initialization (random uniform). Shape=(2,)
+			sn_range_limits (tuple): min and max value allowed for the signal noise. Shape=(2,)
+			n_gm (int): number of gaussian mixtures for the model
+			max_f_init (float or None): maximum frequency used for initialization of the mean gaussian mixture.
+										If None, the maximum frequency possible in the data will be used
+		"""
 		super(GpPatternDiscovery, self).__init__(x, y, sn_range_limits, sn_range_init)
 		# the keys in the dict kernel params limits must correspond to the keys in kernel_params
 		# l_range can be specified for each dimension separately or for all dimensions at the same time
@@ -45,11 +56,15 @@ class GpPatternDiscovery(Gp):
 		"""
 		dists = compute_dist_mat(self.x, self.x).flatten(0, 1)
 		dist_max = dists.max(0).values
-		# dist_min = torch.where(dists.eq(0.0), torch.tensor(1.0e10, dtype=self.x.dtype, device=self.x.device), dists).min(0).values
 
 		sn = torch.Tensor(self.sn_range_init[0] + torch.rand(1) * (self.sn_range_init[1] - self.sn_range_init[0]))
-
-		mixtures_mean = torch.rand(self.n_gm, self.x.shape[1]) * self.max_f_init  # * 0.5 / dist_min
+		if self.max_f_init is not None:
+			mixtures_mean = torch.rand(self.n_gm, self.x.shape[1]) * self.max_f_init  # * 0.5 / dist_min
+		else:
+			# if the max frequency is not provided to the object, set it to 0.5/ dist_min in the data,
+			# which is the highest frequency that can appear
+			dist_min = torch.where(dists.eq(0.0), torch.tensor(1.0e10, dtype=self.x.dtype, device=self.x.device), dists).min(0).values
+			mixtures_mean = torch.rand(self.n_gm, self.x.shape[1]) * 0.5 / dist_min
 		# Inverse of lengthscales should be drawn from truncated Gaussian | N(0, max_dist^2)
 		mixtures_scale = torch.randn(self.n_gm, self.x.shape[1]).mul_(dist_max).abs_().reciprocal_()
 		mixtures_weight = self.y.std().div(self.n_gm)[None].repeat(self.n_gm)

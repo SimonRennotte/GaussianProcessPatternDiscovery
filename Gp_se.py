@@ -16,11 +16,26 @@ class GpSe(Gp):
 		"l": characteristic lengthscales
 		"sf": signal std
 	"""
-	def __init__(self, x, y, l_range_limits=((0., math.inf),), sf_range_limits=(0, math.inf), sn_range_limits=(1e-3, 1),
-				 l_range_init=((0, 1.),), sf_range_init=(0.1, 1), sn_range_init=(1e-3, 1)):
+	def __init__(self, x, y, l_range_limits=((0., math.inf),), sf_range_limits=(0, math.inf), sn_range_limits=(1e-3, math.inf),
+				 l_range_init=((0, 10.),), sf_range_init=(0., 1), sn_range_init=(1e-3, 1)):
+		"""
+		Init the object
+		Args:
+			x (numpy.array or torch.Tensor): feature of the data that will be stored in the gp memory
+			y (numpy.array or torch.Tensor): target values of the data that will be stored in the gp memory
+			sn_range_init (tuple): min and max value of the signal noise used for initialization (random uniform). Shape=(2,)
+			sn_range_limits (tuple): min and max value allowed for the signal noise. Shape=(2,)
+			sf_range_init (tuple): min and max value of the signal std used for initialization (random uniform). Shape=(2,)
+			sf_range_limits (tuple): min and max value allowed for the signal std. Shape=(2,)
+			l_range_init (tuple or tuple of tuple or numpy.array): min and max value of the signal noise used for
+										initialization (random uniform).
+										Shape=(Nl, 2) to set lengthscales init differently for each dimension or (2,) otherwise
+			l_range_limits (tuple or tuple of tuple or numpy.array): min and max value allowed for the lengthscales.
+										Shape=(Nl, 2) to set lengthscales limits differently for each dimension or (2,) otherwise
+		"""
 		super(GpSe, self).__init__(x, y, sn_range_limits, sn_range_init)
-		# the keys in the dict kernel params limits must correspond to the keys in kernel_params
-		# l_range can be specified for each dimension separately or for all dimensions at the same time
+		# l_range_limits can be specified for all dimensions separately or for all dimensions at the same time
+		# but in either can, the parameter is set to be of shape (Nl, 2)
 		l_range_limits = torch.Tensor(l_range_limits)
 		if l_range_limits.dim == 1:
 			l_range_limits = l_range_limits[None, :].repeat(1, x.shape[1])
@@ -29,6 +44,8 @@ class GpSe(Gp):
 		if l_range_init.dim == 1:
 			l_range_init = l_range_init[None, :].repeat(1, x.shape[1])
 
+		# the keys in the dict kernel_params_limits and kernel_params_init must correspond to the keys in kernel_params
+		# l_range can be specified for each dimension separately or for all dimensions at the same time
 		self.kernel_params_limits = {"l": l_range_limits, "sf": torch.Tensor(sf_range_limits)}
 		self.kernel_params_init = {"l": l_range_init, "sf": torch.Tensor(sf_range_init)}
 
